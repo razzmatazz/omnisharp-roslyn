@@ -13,6 +13,9 @@ dotnet_diagnostic.VSTHRD003.severity = none
 dotnet_diagnostic.VSTHRD105.severity = none
 dotnet_diagnostic.VSTHRD110.severity = none
 dotnet_diagnostic.VSTHRD200.severity = none
+dotnet_diagnostic.VSTHRD103.severity = none
+dotnet_diagnostic.VSTHRD011.severity = none
+dotnet_diagnostic.VSTHRD011.severity = none
 
 [*.cs]
 indent_size = 4

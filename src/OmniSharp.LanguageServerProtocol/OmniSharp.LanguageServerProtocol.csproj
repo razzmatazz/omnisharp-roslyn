@@ -10,7 +10,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="All" />
-        <PackageReference Include="OmniSharp.Extensions.LanguageServer" />
+        <ProjectReference Include="../../../csharp-language-server-protocol/src/Server/Server.csproj" />
     </ItemGroup>
 
     <ItemGroup>
