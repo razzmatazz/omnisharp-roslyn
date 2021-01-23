@@ -36,12 +36,23 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
             {
                 FileName = FromUri(request.TextDocument.Uri),
                 Column = Convert.ToInt32(request.Position.Character),
-                Line = Convert.ToInt32(request.Position.Line)
+                Line = Convert.ToInt32(request.Position.Line),
+                WantMetadata = true,
             };
 
             var omnisharpResponse = await _definitionHandler.Handle(omnisharpRequest);
 
-            if (string.IsNullOrWhiteSpace(omnisharpResponse.FileName))
+            if (omnisharpResponse.MetadataSource != null)
+            {
+                var mds = omnisharpResponse.MetadataSource;
+
+                return new LocationOrLocationLinks(new Location()
+                {
+                    Uri = ToUri(mds),
+                    Range = ToRange((omnisharpResponse.Column, omnisharpResponse.Line))
+                });
+            }
+            else if (string.IsNullOrWhiteSpace(omnisharpResponse.FileName))
             {
                 return new LocationOrLocationLinks();
             }

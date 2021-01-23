@@ -12,6 +12,7 @@ using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.LanguageServerProtocol.Handlers;
 using OmniSharp.Models;
 using OmniSharp.Models.Diagnostics;
+using OmniSharp.Models.Metadata;
 
 namespace OmniSharp.LanguageServerProtocol
 {
@@ -96,7 +97,39 @@ namespace OmniSharp.LanguageServerProtocol
         }
 
         public static DocumentUri ToUri(string fileName) => DocumentUri.File(fileName);
-        public static string FromUri(DocumentUri uri) => uri.GetFileSystemPath().Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+
+        public static DocumentUri ToUri(MetadataSource mds) =>
+            new Uri($"osmd:/Project/{mds.ProjectName}/Assembly/{mds.AssemblyName}/Symbol/{mds.TypeName}.cs");
+
+        public static string FromUri(DocumentUri uri)
+        {
+            if (uri.Scheme == "osmd")
+            {
+                var regex = new Regex(@"/Project/(.+)/Assembly/(.+)/Symbol/(.+)\.cs");
+                var m = regex.Match(uri.Path);
+
+                if (!m.Success)
+                {
+                    return "";
+                }
+                else
+                {
+                    string projectName = m.Groups[1].ToString();
+                    string assemblyName = m.Groups[2].ToString();
+                    string symbolName = m.Groups[3].ToString();
+
+                    string folderize(string path) => string.Join("/", path.Split('.'));
+
+                    return
+                        $"$metadata$/Project/{folderize(projectName)}/Assembly/{folderize(assemblyName)}/Symbol/{folderize(symbolName)}.cs"
+                        .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+                }
+            }
+            else
+            {
+                return uri.GetFileSystemPath().Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            }
+        }
 
         public static Range ToRange((int column, int line) location)
         {
