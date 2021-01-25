@@ -19,7 +19,7 @@ using Diagnostic = OmniSharp.Extensions.LanguageServer.Protocol.Models.Diagnosti
 
 namespace OmniSharp.LanguageServerProtocol.Handlers
 {
-    internal sealed class OmniSharpCodeActionHandler : CodeActionHandlerBase, IExecuteCommandHandler
+    internal sealed partial class OmniSharpCodeActionHandler : CodeActionHandlerBase
     {
         public static IEnumerable<IJsonRpcHandler> Enumerate(
             RequestHandlers handlers,
@@ -36,8 +36,6 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
         }
 
         private readonly Mef.IRequestHandler<GetCodeActionsRequest, GetCodeActionsResponse> _getActionsHandler;
-        private readonly ExecuteCommandRegistrationOptions _executeCommandRegistrationOptions;
-        private ExecuteCommandCapability _executeCommandCapability;
         private Mef.IRequestHandler<RunCodeActionRequest, RunCodeActionResponse> _runActionHandler;
         private readonly DocumentSelector _documentSelector;
         private readonly ISerializer _serializer;
@@ -58,10 +56,6 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
             _serializer = serializer;
             _server = server;
             _documentVersions = documentVersions;
-            _executeCommandRegistrationOptions = new ExecuteCommandRegistrationOptions()
-            {
-                Commands = new Container<string>("omnisharp/executeCodeAction"),
-            };
         }
 
         public override async Task<CommandOrCodeActionContainer> Handle(CodeActionParams request, CancellationToken cancellationToken)
@@ -93,16 +87,15 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
                         Title = ca.Name,
                         Kind = kind,
                         Diagnostics = new Container<Diagnostic>(),
-                        Edit = new WorkspaceEdit(),
-                        Command = Command.Create("omnisharp/executeCodeAction")
-                            .WithArguments(new CommandData()
+                        Edit = null,
+                        Data = JObject.FromObject(
+                            new CodeActionCommandData()
                             {
                                 Uri = request.TextDocument.Uri,
                                 Identifier = ca.Identifier,
                                 Name = ca.Name,
                                 Range = request.Range,
                             })
-                            with { Title = ca.Name }
                     });
             }
 
@@ -110,15 +103,9 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
                 codeActions.Select(ca => new CommandOrCodeAction(ca)));
         }
 
-        public override Task<CodeAction> Handle(CodeAction request, CancellationToken cancellationToken)
+        public override async Task<CodeAction> Handle(CodeAction request, CancellationToken cancellationToken)
         {
-            return Task.FromResult(request);
-        }
-
-        public async Task<Unit> Handle(ExecuteCommandParams request, CancellationToken cancellationToken)
-        {
-            Debug.Assert(request.Command == "omnisharp/executeCodeAction");
-            var data = request.ExtractArguments<CommandData>(_serializer);
+            var data = request.Data.ToObject<CodeActionCommandData>();
 
             var omnisharpCaRequest = new RunCodeActionRequest {
                 Identifier = data.Identifier,
@@ -139,33 +126,16 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
                     _server.ClientSettings.Capabilities.Workspace!.WorkspaceEdit.Value,
                     _documentVersions
                 );
-                ;
 
-                await _server.Workspace.ApplyWorkspaceEdit(new ApplyWorkspaceEditParams()
+                return new CodeAction
                 {
-                    Label = data.Name,
-                    Edit = edit
-                }, cancellationToken);
-
-                // Do something with response?
-                //if (response.Applied)
+                    Edit = edit,
+                };
             }
-
-            return Unit.Value;
-        }
-
-        class CommandData
-        {
-            public DocumentUri Uri { get; set;}
-            public string Identifier { get; set;}
-            public string Name { get; set;}
-            public Range Range { get; set;}
-        }
-
-        ExecuteCommandRegistrationOptions IRegistration<ExecuteCommandRegistrationOptions, ExecuteCommandCapability>.GetRegistrationOptions(ExecuteCommandCapability capability, ClientCapabilities clientCapabilities)
-        {
-            _executeCommandCapability = capability;
-            return _executeCommandRegistrationOptions;
+            else
+            {
+                return new CodeAction();
+            }
         }
 
         protected override CodeActionRegistrationOptions CreateRegistrationOptions(CodeActionCapability capability, ClientCapabilities clientCapabilities)
@@ -177,6 +147,7 @@ namespace OmniSharp.LanguageServerProtocol.Handlers
                     CodeActionKind.SourceOrganizeImports,
                     CodeActionKind.Refactor,
                     CodeActionKind.RefactorExtract),
+                ResolveProvider = true,
             };
         }
     }
