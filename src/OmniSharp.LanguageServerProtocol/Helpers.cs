@@ -99,19 +99,19 @@ namespace OmniSharp.LanguageServerProtocol
         public static DocumentUri ToUri(string fileName) => DocumentUri.File(fileName);
 
         public static DocumentUri ToUri(MetadataSource mds) =>
-            new Uri($"osmd:/Project/{mds.ProjectName}/Assembly/{mds.AssemblyName}/Symbol/{mds.TypeName}.cs");
+            new Uri($"omnisharp:/metadata/Project/{mds.ProjectName}/Assembly/{mds.AssemblyName}/Symbol/{mds.TypeName}.cs");
 
         public static string FromUri(DocumentUri uri) => uri.Scheme switch {
             "file" => uri.GetFileSystemPath().Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar),
-            "osmd" => FromOsmdUriPath(uri.Path),
+            "omnisharp" => FromOmnisharpUriPath(uri.Path),
             _ => uri.Path
         };
 
-        private static readonly Regex OsmdUriPathRegex = new Regex(@"/Project/(.+)/Assembly/(.+)/Symbol/(.+)\.cs");
+        private static readonly Regex OmnisharpMetadataUriPathRegex = new Regex(@"/metadata/Project/(.+)/Assembly/(.+)/Symbol/(.+)\.cs");
 
-        private static string FromOsmdUriPath(string path)
+        private static string FromOmnisharpUriPath(string path)
         {
-            Match m = OsmdUriPathRegex.Match(path);
+            Match m = OmnisharpMetadataUriPathRegex.Match(path);
 
             if (!m.Success)
             {
